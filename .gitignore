@@ -10,3 +10,4 @@ venv/
 # IDE/editor configs
 .vscode/
 *.swp
+.env
