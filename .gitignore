@@ -1,0 +1,12 @@
+# Python artifacts
+__pycache__/
+*.py[cod]
+*.so
+
+# Virtual environments
+venv/
+.env
+
+# IDE/editor configs
+.vscode/
+*.swp
