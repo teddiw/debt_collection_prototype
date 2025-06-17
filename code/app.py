@@ -3,7 +3,7 @@ import os
 import sys
 from dotenv import load_dotenv
 
-from utils.pdf_to_text_pipeline import batch_process_local_pdfs
+from code.utils.pdf_to_markdown_pipeline import batch_process_local_pdfs
 from utils.embed_and_store       import embed_ocr_pages_to_pinecone
 from utils.retriever             import get_qa_chain
 from utils.query                 import send_query

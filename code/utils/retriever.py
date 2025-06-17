@@ -1,32 +1,35 @@
-# utils/retriever.py
-
+# retriever.py
+from __future__ import annotations
 import os
+from typing import Optional
 from dotenv import load_dotenv
 from pinecone import Pinecone
 from langchain_pinecone import PineconeVectorStore
-from langchain_openai import ChatOpenAI, OpenAIEmbeddings
-from langchain.chains import RetrievalQA
+from langchain_openai import OpenAIEmbeddings
 
-def get_qa_chain(
+__all__ = ["get_retriever"]
+
+def get_retriever(
+    *,
     index_name: str,
     case_id: str,
-    llm: ChatOpenAI = ChatOpenAI(model="gpt-4", temperature=0),
+    doc_type: Optional[str] = None,
     embedding: OpenAIEmbeddings = OpenAIEmbeddings(model="text-embedding-3-small"),
-) -> RetrievalQA:
+    namespace: Optional[str] = None,
+    top_k: int = 6,
+):
+    """Return a Pinecone retriever filtered by case_id (and opt. doc_type)."""
     load_dotenv()
     pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
-    index = pc.Index(index_name)
-    vectorstore = PineconeVectorStore(index=index, embedding=embedding)
-
-    # tell it to use our Document.page_content field
-    retriever = vectorstore.as_retriever(
-        text_key="page_content",
-        search_kwargs={"filter": {"case_id": case_id}}
+    store = PineconeVectorStore(
+        index     = pc.Index(index_name),
+        embedding = embedding,
+        namespace = namespace,
     )
+    filt = {"case_id": case_id}
+    if doc_type:
+        filt["doc_type"] = doc_type
 
-    return RetrievalQA.from_chain_type(
-        llm=llm,
-        retriever=retriever,
-        return_source_documents=True
+    return store.as_retriever(
+        search_kwargs={"filter": filt, "k": top_k}
     )
-

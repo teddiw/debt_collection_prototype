@@ -1,78 +1,158 @@
+"""
+embed_and_store.py
+
+Push per-page Markdown files for a single case directory into Pinecone.
+
+*Default* = idempotent: a page whose **vector ID** already exists in the
+index is skipped. Pass `overwrite=True` to force a re-embed (upsert will
+replace any existing vector with the same ID).
+
+Vector **ID design**
+====================
+    <case_id>|<doc_type>|<sha256(text)[:16]>
+
+Metadata:
+    {
+      "vector_id":      "<the same ID as the Pinecone key>",
+      "case_id":        "23CHLC22869",
+      "doc_type":       "complaint",
+      "page_file":      "page_1.md",
+      "content_hash":   "<full_sha256>",
+      "embedding_model":"text-embedding-3-small",
+      "ingested":       "2025-06-17T19:59:00Z"
+    }
+
+Usage:
+    python embed_and_store.py \
+        --case-dir files/cases_parsed/23CHLC22869 \
+        --index-name lasc \
+        --overwrite
+"""
+
 import os
+import argparse
+import hashlib
+from datetime import datetime, timezone
 from pathlib import Path
+from typing import List, Dict
+
 from dotenv import load_dotenv
 from tqdm import tqdm
-
-from openai import OpenAI
 from pinecone import Pinecone
 from langchain_openai import OpenAIEmbeddings
 
+# ───────────────────────── Config Defaults ────────────────────────────────
+load_dotenv()
+DEFAULT_INDEX      = os.getenv("PINECONE_INDEX", "lasc")
+DEFAULT_EMBED_MODEL = "text-embedding-3-small"
 
-def embed_ocr_pages_to_pinecone(
+# Instantiate once
+pc_client     = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
+default_embed  = OpenAIEmbeddings(model=DEFAULT_EMBED_MODEL)
+
+# ───────────────────────── Helper Functions ───────────────────────────────
+
+def sha256(text: str) -> str:
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def _vector_id(case_id: str, doc_type: str, text: str) -> str:
+    return f"{case_id}|{doc_type}|{sha256(text)[:16]}"
+
+# ───────────────────────── Core Routine ────────────────────────────────────
+
+def embed_and_store(
     case_dir: str,
-    pinecone_index_name: str = "lasc",
-    embedding_model: str = "text-embedding-3-small",
+    *,
+    pinecone_index_name: str = DEFAULT_INDEX,
+    embedding_model: str = DEFAULT_EMBED_MODEL,
+    overwrite: bool = False,
 ):
     """
-    Walk all subfolders under `case_dir` (complaint, request_for_default_judgment, other),
-    load each page_*.md, and upsert only the pages not yet in Pinecone.
+    Embed every Markdown page under `case_dir` into Pinecone.
+
+    Parameters
+    ----------
+    case_dir : str
+        Path like `files/cases_parsed/<case_id>/`
+    pinecone_index_name : str
+        Name of the Pinecone index to upsert into.
+    embedding_model : str
+        Name of the OpenAI embedding model.
+    overwrite : bool
+        If False, skip vectors whose ID already exists.
+        If True, upsert all pages, replacing existing vectors.
     """
-    load_dotenv()
-    pc    = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
-    index = pc.Index(pinecone_index_name)
-    embed = OpenAIEmbeddings(model=embedding_model)
+    index   = pc_client.Index(pinecone_index_name)
+    embedder = (
+        default_embed
+        if embedding_model == DEFAULT_EMBED_MODEL
+        else OpenAIEmbeddings(model=embedding_model)
+    )
 
     case_id = Path(case_dir).name
-    pages = []
+    pages: List[Dict] = []
 
-    # 1) collect all pages with their metadata & deterministic IDs
-    for doc_type in sorted(os.listdir(case_dir)):
-        doc_dir = os.path.join(case_dir, doc_type)
-        if not os.path.isdir(doc_dir):
+    # 1) Collect pages
+    for doc_type in sorted(Path(case_dir).iterdir()):
+        if not doc_type.is_dir():
             continue
-
-        for fname in sorted(os.listdir(doc_dir)):
-            if not fname.lower().endswith((".md", ".txt")):
-                continue
-            text = (Path(doc_dir) / fname).read_text(encoding="utf-8").strip()
+        for md_file in sorted(doc_type.glob("*.[mM][dD]")):
+            text = md_file.read_text(encoding="utf-8").strip()
             if not text:
                 continue
-
-            page_id = f"{case_id}_{doc_type}_{fname}"
+            vid = _vector_id(case_id, doc_type.name, text)
             pages.append({
-                "id":       page_id,
-                "text":     text,
-                "metadata": {"case_id": case_id, "doc_type": doc_type, "source": fname}
+                "id": vid,
+                "text": text,
+                "meta": {
+                    "text": text,            
+                    "vector_id": vid,
+                    "case_id":   case_id,
+                    "doc_type":  doc_type.name,
+                    "page_file": md_file.name,
+                    "content_hash": sha256(text),
+                    "embedding_model": embedding_model,
+                    "ingested":  datetime.now(timezone.utc)
+                                            .isoformat(timespec="seconds"),
+                }
             })
+
 
     if not pages:
         print(f"[WARN] No pages found under {case_dir}")
         return
 
-    # 2) check which IDs are already indexed
-    all_ids     = [p["id"] for p in pages]
-    resp        = index.fetch(ids=all_ids)
-    existing_ids = set(resp.vectors.keys())
+    # 2) Skip logic
+    if not overwrite:
+        existing = set(index.fetch(ids=[p["id"] for p in pages]).vectors.keys())
+        pages = [p for p in pages if p["id"] not in existing]
+        if not pages:
+            print(f"[SKIP] All pages already indexed for case {case_id}")
+            return
 
-    # 3) filter out already‐indexed pages
-    to_upsert = [p for p in pages if p["id"] not in existing_ids]
-    skipped    = len(pages) - len(to_upsert)
+    # 3) Embed & upsert
+    batch = []
+    for p in tqdm(pages, desc="Embedding pages", unit="page"):
+        vec = embedder.embed_query(p["text"])
+        batch.append((p["id"], vec, p["meta"]))
 
-    if not to_upsert:
-        print(f"[SKIP] All {len(pages)} pages already in Pinecone for case {case_id}")
-        return
+    index.upsert(vectors=batch)
+    mode = "overwrite" if overwrite else "new only"
+    print(f"✅ Upserted {len(batch)} pages ({mode}) for case {case_id}")
 
-    # 4) embed & upsert remaining pages
-    upsert_batch = []
-    for p in tqdm(to_upsert, desc="Embedding new pages"):
-        vec = embed.embed_query(p["text"])
-        upsert_batch.append((p["id"], vec, p["metadata"]))
+# ───────────────────────── CLI Helper ──────────────────────────────────────
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--case-dir",       required=True)
+    parser.add_argument("--index-name",     default=DEFAULT_INDEX)
+    parser.add_argument("--embedding-model",default=DEFAULT_EMBED_MODEL)
+    parser.add_argument("--overwrite",      action="store_true")
+    args = parser.parse_args()
 
-    # Pinecone SDK expects a list of (id, vector, metadata)
-    index.upsert(vectors=upsert_batch)
-
-    print(
-        f"✅ Indexed {len(to_upsert)} new pages "
-        f"(skipped {skipped} existing) "
-        f"from case {case_id}."
+    embed_and_store(
+        args.case_dir,
+        pinecone_index_name=args.index_name,
+        embedding_model=args.embedding_model,
+        overwrite=args.overwrite,
     )
