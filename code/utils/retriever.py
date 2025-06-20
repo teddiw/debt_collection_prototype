@@ -8,6 +8,7 @@ from langchain_pinecone import PineconeVectorStore
 from langchain_openai import OpenAIEmbeddings
 
 __all__ = ["get_retriever"]
+load_dotenv()
 
 def get_retriever(
     *,
@@ -19,7 +20,7 @@ def get_retriever(
     top_k: int = 6,
 ):
     """Return a Pinecone retriever filtered by case_id (and opt. doc_type)."""
-    load_dotenv()
+    
     pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
     store = PineconeVectorStore(
         index     = pc.Index(index_name),
