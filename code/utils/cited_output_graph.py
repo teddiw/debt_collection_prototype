@@ -32,7 +32,7 @@ class S(TypedDict, total=False):
     retrieved_responses: Annotated[list, operator.add] # retrieved responses by node
     cited_responses:  Annotated[list, operator.add] # list[str]    # cited responses by node
     retrieved_source_pages:  Annotated[list, operator.add]# list[list[str]]  # retrieved page names by node
-    # cited_source_pages:  Annotated[list, operator.add] # list[list[str]]      # cited page names by node # TODO implement in build_node when cited generation returns cited page names
+    cited_source_pages:  Annotated[list, operator.add] # list[list[str]]      # cited page names by node # TODO implement in build_node when cited generation returns cited page names
     cited_quotes:  Annotated[list, operator.add] # list[list[str]]     # cited quotes by node
     highlighted_sources:  Annotated[list, operator.add] # list[list[str]]  # sources with highlighted cited quotes by node
     requirement_satisfied:  Annotated[list, operator.add] # list[bool]  # whether the requirement is satisfied for the entire graph
@@ -79,6 +79,7 @@ async def main(
                     'retrieved_source_pages': [(node_name, source_pages)],
                     'highlighted_sources': [(node_name, answer.color_highlighted_cited_sources)],
                     'cited_quotes': [(node_name, answer.cited_quotes)],
+                    'cited_source_pages': [(node_name, answer.cited_source_names)],
                     'requirement_satisfied': [(node_name, answer.requirement_satisfied)],
                     }
         return node
@@ -122,7 +123,7 @@ async def main(
         "retrieved_responses": [],   
         "cited_responses": [],   
         "retrieved_source_pages": [],  
-        # cited_source_pages:  dict[str, list[str]] # TODO implement in build_node when cited generation returns cited page names
+        "cited_source_pages":  [],
         "cited_quotes": [],     
         "highlighted_sources": [],  
         "requirement_satisfied": []  
@@ -133,7 +134,6 @@ async def main(
     print(f"Total elapsed: {total_dur:.2f}s")
 
     # 5) Save results to a one-row pandas table in csv format
-    # TODO 
     # 5.1) Flatten the results into a dictionary
     result_dict = {}
     for key_i, value_i in result.items():
@@ -158,6 +158,7 @@ async def main(
     
     for node_name in all_node_names:
         cited_quote = result_dict[f"cited_quotes:{node_name}"][0]
+        cited_sources = result_dict[f"cited_source_pages:{node_name}"][0]
         for i in range(len(cited_quote)):
             cited_quote[i] = f"[{i+1}] "+cited_quote[i]
         cited_quotes_str = "<br>"+"<br>".join(cited_quote)
@@ -165,6 +166,7 @@ async def main(
         <p><strong>{node_to_cited_response_query_mapping[node_name]}</strong></p> 
         <p><strong>Cited response: </strong>{result_dict[f"cited_responses:{node_name}"][0].replace('\n', '<br>')}</p>
         <p><strong>Cited quotes:</strong> <span style=\"color:green\">{cited_quotes_str}</span></p>
+        <p><strong>Cited sources:</strong> <span style=\"color:blue\">{", ".join(cited_sources)}</span></p>
         <p><strong>Uncited response: </strong>{result_dict[f"retrieved_responses:{node_name}"][0].replace('\n', '<br>')}</p>
         <p><strong>Sources: </strong><span style=\"color:blue\">{", ".join(result_dict[f"retrieved_source_pages:{node_name}"][0])}</span></p>
         <hr>

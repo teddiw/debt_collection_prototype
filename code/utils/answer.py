@@ -6,19 +6,20 @@ class Answer(object):
                  question: str,
                  cited_response_numbered_for_all_quotes: str,
                  all_quotes: list[str],
+                 all_source_names_for_quotes: list[str],
                  all_sources: list[str],
                  requirement_satisfied: bool,
-                 answer_dict: dict = {}):
+                 ):
         self.question = question
         self.cited_response_numbered_for_all_quotes = cited_response_numbered_for_all_quotes
         self.all_quotes = all_quotes
+        self.all_source_names_for_quotes = all_source_names_for_quotes
         self.all_sources = all_sources
         self.requirement_satisfied = requirement_satisfied
-        self.answer_dict = answer_dict
 
         # Maps citation numbers from the case with all quotes to the case with cited quotes
         # Identify the cited quotes from the response
-        self.citation_number_mapping, self.cited_quotes = self._identify_cited_quotes()
+        self.citation_number_mapping, self.cited_quotes, self.cited_source_names = self._identify_cited_quotes()
         
         # Response with citations re-numbered to be consistent with self.cited_quotes
         self.cited_response = self._renumber_response_citations()
@@ -42,7 +43,8 @@ class Answer(object):
                 cited_quote_indices.append(i)
                 citation_number_mapping[i+1] = len(cited_quote_indices)
         cited_quotes = [self.all_quotes[i] for i in cited_quote_indices]
-        return citation_number_mapping, cited_quotes
+        cited_source_names = [self.all_source_names_for_quotes[i] for i in cited_quote_indices]
+        return citation_number_mapping, cited_quotes, cited_source_names
     
     def _renumber_response_citations(self):
         """Renumber the citations in the response to match the cited quotes."""
