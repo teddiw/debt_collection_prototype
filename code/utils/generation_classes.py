@@ -79,19 +79,26 @@ example_user:
     Source quotes:
     Quote #1: The debtor's name is John Doe.
     Quote #2: The debtor's address is 123 Main St.
-example_assistant: {{"cited_output_text": "The debtor's name is John Doe and their address is 123 Main St [1][2]".}}
+example_assistant: {{"cited_output_text": "The debtor's name is John Doe and their address is 123 Main St [1][2].", "requirement_satisfied": True}}
 
 example_user: 
     Query: What is the charge-off balance in the original complaint?
     Source quotes:
     Quote #1: The charge-off balance in the original complaint is $1,000.
     Quote #2: The charge-off balance in the amended complaint is $1,200.
-example_assistant: {{"cited_output_text": "The charge-off balance in the original complaint is $1,000 [1]. The amended complaint has a charge-off balance of $1,200 [2]."}}
+example_assistant: {{"cited_output_text": "The charge-off balance in the original complaint is $1,000 [1]. The amended complaint has a charge-off balance of $1,200 [2].", "requirement_satisfied": True}}
 
 example_user:
     Query: Is the plaintiff a debt buyer?
     Source quotes:
     Quote #1: The charge-off creditor sold the debt to the plaintiff.
-example_assistant: {{"cited_output_text": "The plaintiff is a debt buyer, as they bought the debt from the charge-off creditor [1]."}}
+example_assistant: {{"cited_output_text": "The plaintiff is a debt buyer, as they bought the debt from the charge-off creditor [1].", "requirement_satisfied": True}}
+
+example_user:
+    Query: Does the plaintiff allege the debt balance at charge off and an explanation of the amount, nature, and reason for all post-charge-off interest and fees, if any, imposed by the charge-off creditor?
+    Source quotes:
+    Quote #1: The debt balance does not have any post-charge-off associated interest and fees.
+example_assistant: {{"cited_output_text": "The plaintiff fails to allege the debt balance at change-off but alleges that there are no post-charge-off interest or fees associated with the debt balance [1].", "requirement_satisfied": False}}
 """
     cited_output_text: str = Field(description="The answer to the query grounded in the appropriate source quotes with corresponding citation markers at the end of each sentence.")
+    requirement_satisfied: bool = Field(description="The judgment of whether the answer satisfies the requirements of the query. This should be True if the answer satisfies the requirements of the question and False if it does not or if there is uncertainty.")

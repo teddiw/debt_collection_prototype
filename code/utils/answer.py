@@ -26,6 +26,9 @@ class Answer(object):
 
         # List of cited sources with the cited quotes with <highlight> tags
         self.tag_highlighted_cited_sources = self._tag_highlight_sources(self.all_sources, self.cited_quotes)
+
+        # List of cited quotes in surrounding context with <highlight> tags
+        self.tag_highlighted_cited_source_snippets = self._tag_highlighted_source_snippets(self.all_sources, self.cited_quotes)
         
         # List of cited sources with the cited quotes with color highlights
         self.color_highlighted_cited_sources = self._color_highlight_cited_sources()
@@ -69,6 +72,23 @@ class Answer(object):
         # remove any sources that did not have a quote highlighted
         tag_highlighted_cited_sources = [source for source in tag_highlighted_cited_sources if "<highlight>" in source]
         return tag_highlighted_cited_sources
+    
+    def _tag_highlighted_source_snippets(self, sources, quotes):
+        """Highlight the quotes in the sources with <highlight> tags and return only the highlighted section surrounded by a couple sentences on either side for each quote."""
+        tag_highlighted_cited_source_snippets = []
+        for quote in quotes:
+            for source in sources:
+                if find_quote(quote, source):
+                    highlighted_quote = f"<highlight>{quote}</highlight>"
+                    highlighted_source = highlight_source(quote, source, highlighted_quote)
+                    start_quote_idx = highlighted_source.index("<highlight>")
+                    quote_length = len(highlighted_quote)
+                    start_source_idx = max(0, start_quote_idx - 200)  # 200 characters before the quote
+                    end_source_idx = min(len(highlighted_source), start_quote_idx + quote_length + 200)  # 200 characters after the quote
+                    trimmed_highlighted_source = highlighted_source[start_source_idx:end_source_idx]
+                    tag_highlighted_cited_source_snippets.append(trimmed_highlighted_source)
+                    break
+        return tag_highlighted_cited_source_snippets
 
     def _color_highlight_cited_sources(self):
         """Convert the tag highlighted sources to color-coded strings for terminal output."""

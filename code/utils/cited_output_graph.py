@@ -35,6 +35,7 @@ class S(TypedDict, total=False):
     cited_source_pages:  Annotated[list, operator.add] # list[list[str]]      # cited page names by node # TODO implement in build_node when cited generation returns cited page names
     cited_quotes:  Annotated[list, operator.add] # list[list[str]]     # cited quotes by node
     highlighted_sources:  Annotated[list, operator.add] # list[list[str]]  # sources with highlighted cited quotes by node
+    highlighted_source_snippets:  Annotated[list, operator.add] # list[list[str]]  # highlighted cited quotes in source snippet by node
     requirement_satisfied:  Annotated[list, operator.add] # list[bool]  # whether the requirement is satisfied for the entire graph
 
 async def main(
@@ -70,14 +71,15 @@ async def main(
                 cited_response_query += "\n Information alleged by the plaintiff: " + predecessor_response
             out = await node_to_retriever_mapping[node_name].ainvoke({"query": retrieval_query})
             # Extract page names from source_documents
-            source_pages = [doc.metadata.get("page_file") for doc in out.get("source_documents", []) if doc.metadata.get("page_file")]
+            source_pages = [doc.metadata.get("doc_type")+'/'+doc.metadata.get("page_file") for doc in out.get("source_documents", []) if doc.metadata.get("page_file")]
             # Get cited answer
             answer = cited_generation(cited_response_query, out['source_documents'], node_to_llm_mapping[node_name], verbose=True)
 
             return {'retrieved_responses': [(node_name, out.get("result"))],
                     'cited_responses': [(node_name, answer.cited_response)],
                     'retrieved_source_pages': [(node_name, source_pages)],
-                    'highlighted_sources': [(node_name, answer.color_highlighted_cited_sources)],
+                    'highlighted_sources': [(node_name, answer.tag_highlighted_cited_sources)],
+                    'highlighted_source_snippets': [(node_name, answer.tag_highlighted_cited_source_snippets)],
                     'cited_quotes': [(node_name, answer.cited_quotes)],
                     'cited_source_pages': [(node_name, answer.cited_source_names)],
                     'requirement_satisfied': [(node_name, answer.requirement_satisfied)],
@@ -126,6 +128,7 @@ async def main(
         "cited_source_pages":  [],
         "cited_quotes": [],     
         "highlighted_sources": [],  
+        "highlighted_source_snippets": [],
         "requirement_satisfied": []  
     }
     result = await graph.ainvoke(state)
@@ -156,19 +159,38 @@ async def main(
         <h1>Case {case_id} Results</h1>
       <p><strong>Total time elapsed:</strong> {total_dur:.2f}s</p>"""
     
+    # TODO get the snippet of the source with highlighted quotes and display in the HTML report
+
     for node_name in all_node_names:
-        cited_quote = result_dict[f"cited_quotes:{node_name}"][0]
+        
+        requirement_satisfied = result_dict[f"requirement_satisfied:{node_name}"][0]
+        if requirement_satisfied:
+            requirement_satisfied_str = "<p><strong><span style=\"color: #107ce8\">Requirement Satisfied</span></strong></p>"
+        else:
+            requirement_satisfied_str = "<p><strong><span style=\"color: #e810e1\">Requirement Not Satisfied</span></strong></p>"
+
         cited_sources = result_dict[f"cited_source_pages:{node_name}"][0]
+        
+        cited_quote = result_dict[f"cited_quotes:{node_name}"][0]
         for i in range(len(cited_quote)):
             cited_quote[i] = f"[{i+1}] "+cited_quote[i]
         cited_quotes_str = "<br>"+"<br>".join(cited_quote)
+        cited_quotes_str = f"<span style=\"color: #13872a\">{cited_quotes_str}</span>"
+
+        cited_quote_snippets = result_dict[f"highlighted_source_snippets:{node_name}"][0]
+        for i in range(len(cited_quote_snippets)):
+            cited_quote_snippets[i] = cited_quote_snippets[i].replace("<highlight>", "<span style=\"color: #13872a\">").replace("</highlight>", "</span>")
+            cited_quote_snippets[i] = f"<span style=\"color: #13872a\">[{i+1}]</span> "+cited_quote_snippets[i]
+        cited_quotes_snippet_str = "<br>"+"<br>".join(cited_quote_snippets) # can use below for "Cited quotes"
+
         report_html += f"""
         <p><strong>{node_to_cited_response_query_mapping[node_name]}</strong></p> 
+        {requirement_satisfied_str}
         <p><strong>Cited response: </strong>{result_dict[f"cited_responses:{node_name}"][0].replace('\n', '<br>')}</p>
-        <p><strong>Cited quotes:</strong> <span style=\"color:green\">{cited_quotes_str}</span></p>
-        <p><strong>Cited sources:</strong> <span style=\"color:blue\">{", ".join(cited_sources)}</span></p>
+        <p><strong>Cited quotes:</strong>{cited_quotes_str}</p> 
+        <p><strong>Cited sources:</strong> {", ".join(cited_sources)}</p>
         <p><strong>Uncited response: </strong>{result_dict[f"retrieved_responses:{node_name}"][0].replace('\n', '<br>')}</p>
-        <p><strong>Sources: </strong><span style=\"color:blue\">{", ".join(result_dict[f"retrieved_source_pages:{node_name}"][0])}</span></p>
+        <p><strong>Sources: </strong>{", ".join(result_dict[f"retrieved_source_pages:{node_name}"][0])}</p>
         <hr>
     """
     report_html += """
@@ -187,7 +209,7 @@ if __name__ == "__main__":
     parser.add_argument("--case_id",      required=True, help="Case ID to query")
     parser.add_argument("--index_name",   default="lasctesttwo", help="Pinecone index name")
     parser.add_argument("--model_str",  default="openai:gpt-4.1", help="Model for buyer node")
-    parser.add_argument("--top_k",   type=int, default=2, help="Top K for the retriever for all nodes")
+    parser.add_argument("--top_k",   type=int, default=4, help="Top K for the retriever for all nodes")
     args = parser.parse_args()
 
     asyncio.run(main(
