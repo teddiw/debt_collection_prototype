@@ -1,6 +1,6 @@
 from langchain.chat_models import init_chat_model
 from langchain.chains import RetrievalQA
-from retriever import get_retriever
+from .retriever import get_retriever
 
 # Keep a list of the node names
 # Node names programmatically correspond to the nodes they're connected to

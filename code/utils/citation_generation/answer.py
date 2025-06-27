@@ -1,5 +1,5 @@
 import copy
-from citation_utils import find_quote, highlight_source
+from .citation_utils import find_quote, highlight_source
 
 class Answer(object):
     def __init__(self, 

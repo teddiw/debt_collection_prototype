@@ -4,9 +4,9 @@ import copy
 
 from langchain_core.prompts       import ChatPromptTemplate
 
-from generation_classes     import QuoteExtraction, CitedOutputGeneration
-from citation_utils         import find_quote, highlight_source
-from answer                 import Answer
+from .generation_classes     import QuoteExtraction, CitedOutputGeneration
+from .citation_utils         import find_quote, highlight_source
+from .answer import Answer
 
 def cited_generation(question, doc_ls, llm, verbose=False):
     """
