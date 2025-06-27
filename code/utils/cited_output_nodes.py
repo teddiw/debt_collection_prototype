@@ -89,7 +89,7 @@ def construct_retrievers(node_to_llm_mapping, index_name, case_id, top_k=5):
         if node_name in complaint_chain_names:
             doc_type = "complaint"
         else:
-            doc_type = "other"
+            doc_type = None
         retriever = RetrievalQA.from_chain_type(
                                                 llm=node_to_llm_mapping[node_name],
                                                 retriever=get_retriever(

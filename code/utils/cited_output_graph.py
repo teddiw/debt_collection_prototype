@@ -68,7 +68,7 @@ async def main(
                     if nn == predecessor_node_name:
                         predecessor_response = cited_response
                         break
-                cited_response_query += "\n Information alleged by the plaintiff: " + predecessor_response
+                cited_response_query += "\nInformation alleged by the plaintiff: " + predecessor_response
             out = await node_to_retriever_mapping[node_name].ainvoke({"query": retrieval_query})
             # Extract page names from source_documents
             source_pages = [doc.metadata.get("doc_type")+'/'+doc.metadata.get("page_file") for doc in out.get("source_documents", []) if doc.metadata.get("page_file")]
@@ -159,8 +159,6 @@ async def main(
         <h1>Case {case_id} Results</h1>
       <p><strong>Total time elapsed:</strong> {total_dur:.2f}s</p>"""
     
-    # TODO get the snippet of the source with highlighted quotes and display in the HTML report
-
     for node_name in all_node_names:
         
         requirement_satisfied = result_dict[f"requirement_satisfied:{node_name}"][0]

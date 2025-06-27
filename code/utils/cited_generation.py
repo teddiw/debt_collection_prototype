@@ -27,6 +27,7 @@ def cited_generation(question, doc_ls, llm, verbose=False):
     source_ls_str = "\n\n".join([f"Source {i+1}:\n{src}" for i, src in enumerate(source_ls)])
     quote_extraction_llm = llm.with_structured_output(QuoteExtraction)
     few_shot_prompt = ChatPromptTemplate.from_messages([("system", QuoteExtraction.system_prompt), ("human", "{input}")])
+    
     quote_extraction_llm = few_shot_prompt | quote_extraction_llm
 
     source_quote_ls = quote_extraction_llm.invoke(f"Query:{question}\nSources:\n{source_ls_str}").source_quote_ls
