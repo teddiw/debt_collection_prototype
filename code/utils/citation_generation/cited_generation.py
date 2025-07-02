@@ -62,6 +62,7 @@ def cited_generation(question, doc_ls, llm, verbose=False):
     
     cited_output_text = cited_output_obj.cited_output_text 
     requirement_satisfied = cited_output_obj.requirement_satisfied 
+    short_answer = cited_output_obj.short_answer
 
     # Create the Answer object
     answer = Answer(question,
@@ -70,6 +71,7 @@ def cited_generation(question, doc_ls, llm, verbose=False):
                     verified_source_quote_page_name_ls,
                     source_ls,
                     requirement_satisfied,
+                    short_answer
                     )
     
     if verbose:

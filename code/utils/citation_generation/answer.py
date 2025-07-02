@@ -9,6 +9,7 @@ class Answer(object):
                  all_source_names_for_quotes: list[str],
                  all_sources: list[str],
                  requirement_satisfied: bool,
+                 short_answer: str = "",
                  ):
         self.question = question
         self.cited_response_numbered_for_all_quotes = cited_response_numbered_for_all_quotes
@@ -16,6 +17,7 @@ class Answer(object):
         self.all_source_names_for_quotes = all_source_names_for_quotes
         self.all_sources = all_sources
         self.requirement_satisfied = requirement_satisfied
+        self.short_answer = short_answer
 
         # Maps citation numbers from the case with all quotes to the case with cited quotes
         # Identify the cited quotes from the response

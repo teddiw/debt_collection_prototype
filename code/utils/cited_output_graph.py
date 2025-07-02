@@ -30,11 +30,15 @@ class S(TypedDict, total=False):
     retrieved_responses: Annotated[list, operator.add] # retrieved responses by node
     cited_responses:  Annotated[list, operator.add] # list[str]    # cited responses by node
     retrieved_source_pages:  Annotated[list, operator.add]# list[list[str]]  # retrieved page names by node
-    cited_source_pages:  Annotated[list, operator.add] # list[list[str]]      # cited page names by node # TODO implement in build_node when cited generation returns cited page names
+    cited_source_pages:  Annotated[list, operator.add] # list[list[str]]      # cited page names by node 
     cited_quotes:  Annotated[list, operator.add] # list[list[str]]     # cited quotes by node
     highlighted_sources:  Annotated[list, operator.add] # list[list[str]]  # sources with highlighted cited quotes by node
     highlighted_source_snippets:  Annotated[list, operator.add] # list[list[str]]  # highlighted cited quotes in source snippet by node
     requirement_satisfied:  Annotated[list, operator.add] # list[bool]  # whether the requirement is satisfied for the entire graph
+    plaintiff: str  # name of the plaintiff
+    defendant: str  # name of the defendant
+    short_responses: Annotated[list, operator.add]  # short responses by node, used for chaining retrieval prompts that require the output of their predecessor
+
 
 async def main(
     case_id: str,
@@ -57,8 +61,9 @@ async def main(
         
         async def node(state: S) -> S: 
             retrieval_query = node_to_retrieval_query_mapping[node_name]
-            cited_response_query = node_to_cited_response_query_mapping[node_name]
+            cited_response_query = node_to_cited_response_query_mapping[node_name].format(plaintiff=state["plaintiff"], defendant=state["defendant"])
             node_number = int(node_name.split("_")[-1])
+            short_response = "" 
             if (node_number > 0):
                 # This is a node that requires the output of its predecessor
                 predecessor_node_name = node_name.split("_")[0] + "_"+str(node_number-1)
@@ -66,7 +71,16 @@ async def main(
                     if nn == predecessor_node_name:
                         predecessor_response = cited_response
                         break
+                for nn, curr_short_response in state['short_responses']:
+                    if nn == predecessor_node_name:
+                        short_response = curr_short_response
+                        break
+                
                 cited_response_query += "\nInformation alleged by the plaintiff: " + predecessor_response
+            retrieval_query = retrieval_query.format(plaintiff=state["plaintiff"], defendant=state["defendant"], short_allegation=short_response)
+            print()
+            print(retrieval_query)
+            print()
             out = await node_to_retriever_mapping[node_name].ainvoke({"query": retrieval_query})
             # Extract page names from source_documents
             source_pages = [doc.metadata.get("doc_type")+'/'+doc.metadata.get("page_file") for doc in out.get("source_documents", []) if doc.metadata.get("page_file")]
@@ -81,6 +95,7 @@ async def main(
                     'cited_quotes': [(node_name, answer.cited_quotes)],
                     'cited_source_pages': [(node_name, answer.cited_source_names)],
                     'requirement_satisfied': [(node_name, answer.requirement_satisfied)],
+                    'short_responses': [(node_name, answer.short_answer)],
                     }
         return node
 
@@ -117,8 +132,19 @@ async def main(
 
     # 4) Run & measure
     total_t0 = time.perf_counter()
+
+    # 4.1) Extract basic facts about the case: identify the plaintiff and defendant and store in the state
+    some_llm = node_to_llm_mapping["hasSignedSworn1788.60_0"]
+    some_retriever = node_to_retriever_mapping["hasSignedSworn1788.60_0"]
+    plaintiff_query = "What is the name of the plaintiff?"
+    plaintiff_out = await some_retriever.ainvoke({"query": plaintiff_query})
+    plaintiff = cited_generation(plaintiff_query, plaintiff_out['source_documents'], some_llm, verbose=False).short_answer
+    defendant_query = "What is the name of the defendant?"
+    defendant_out = await some_retriever.ainvoke({"query": defendant_query})
+    defendant = cited_generation(defendant_query, defendant_out['source_documents'], some_llm, verbose=False).short_answer
+
     state = {
-        "case_id":    case_id,
+        "case_id": case_id,
         "top_k": top_k,
         "retrieved_responses": [],   
         "cited_responses": [],   
@@ -127,7 +153,9 @@ async def main(
         "cited_quotes": [],     
         "highlighted_sources": [],  
         "highlighted_source_snippets": [],
-        "requirement_satisfied": []  
+        "requirement_satisfied": [],
+        "plaintiff": plaintiff,
+        "defendant": defendant,  
     }
     result = await graph.ainvoke(state)
     total_dur = time.perf_counter() - total_t0
@@ -180,7 +208,7 @@ async def main(
         cited_quotes_snippet_str = "<br>"+"<br>".join(cited_quote_snippets) # can use below for "Cited quotes"
 
         report_html += f"""
-        <p><strong>{node_to_cited_response_query_mapping[node_name]}</strong></p> 
+        <p><strong>{node_to_cited_response_query_mapping[node_name].format(plaintiff=result["plaintiff"], defendant=result["defendant"])}</strong></p> 
         {requirement_satisfied_str}
         <p><strong>Cited response: </strong>{result_dict[f"cited_responses:{node_name}"][0].replace('\n', '<br>')}</p>
         <p><strong>Cited quotes:</strong>{cited_quotes_str}</p> 

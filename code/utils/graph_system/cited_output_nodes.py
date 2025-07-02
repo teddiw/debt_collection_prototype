@@ -10,6 +10,7 @@ all_chain_names = [
     "isDebtBuyer", # two nodes _0 and _1
     "isSoleOwner", # two nodes _0 and _1
     "hasChargeOffBalance", # two nodes _0 and _1
+    "hasPostChargeOffFeeExplanation", # two nodes _0 and _1
     "defaultOrLastPaymentDate", # three nodes _0, _1, and _2
     "chargeOffCreditorInfo", # two nodes _0 and _1
     "debtorInfo", # two nodes _0 and _1
@@ -37,6 +38,7 @@ complaint_chain_names = [
     "isDebtBuyer_0", 
     "isSoleOwner_0", 
     "hasChargeOffBalance_0", 
+    "hasPostChargeOffFeeExplanation_0",
     "defaultOrLastPaymentDate_0", 
     "defaultOrLastPaymentDate_2",
     "chargeOffCreditorInfo_0", 
@@ -47,11 +49,16 @@ complaint_chain_names = [
 ]
 
 other_doc_chain_names = [
-    # The answer to each of these nodes is based on the complaint
+    # The answer to each of these nodes is based on documents classified as "other" (e.g., declarations)
     "hasSignedSworn1788.60_0",
+]
+
+all_doc_chain_names = [
+    # The answer to each of these nodes is currently based on all documents
     "isDebtBuyer_1", 
     "isSoleOwner_1", 
     "hasChargeOffBalance_1", 
+    "hasPostChargeOffFeeExplanation_1",
     "defaultOrLastPaymentDate_1",  
     "chargeOffCreditorInfo_1", 
     "debtorInfo_1", 
@@ -88,6 +95,8 @@ def construct_retrievers(node_to_llm_mapping, index_name, case_id, top_k=5):
     for node_name in node_names:
         if node_name in complaint_chain_names:
             doc_type = "complaint"
+        elif node_name in other_doc_chain_names:
+            doc_type = "other"
         else:
             doc_type = None
         retriever = RetrievalQA.from_chain_type(
@@ -113,6 +122,8 @@ all_node_names = [
     "isSoleOwner_1",
     "hasChargeOffBalance_0", 
     "hasChargeOffBalance_1",
+    "hasPostChargeOffFeeExplanation_0",
+    "hasPostChargeOffFeeExplanation_1",
     "defaultOrLastPaymentDate_0", 
     "defaultOrLastPaymentDate_1",
     "defaultOrLastPaymentDate_2",
