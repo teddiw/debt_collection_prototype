@@ -1,28 +1,25 @@
-# TODO Only use this if unable to distinguish the exhibits from the complaint.
-evidence_only = ""# " Texts that use the terms plaintiff, defendant, complaint, lawsuit, default judgment, and civil code are not business records and should be disregarded."
-
 node_to_retrieval_query_mapping = {
     "hasSignedSworn1788.60_0": "Is there a signed sworn declaration for the submitted business records from {plaintiff} and document evidencing the debtor's agreement to the debt (CA Civil Code § 1788.60 (a))? Note that the business records in question must be specified to be from {plaintiff}.",
     "hasShortStatement_0": "Is there a short and plain statement describing the nature of the underlying debt and the consumer transaction or transactions from which it is derived (CA Civil Code § 1788.58 (a)(2))?",
     "isDebtBuyer_0": "Does the plaintiff allege that they are a debt buyer (CA Civil Code § 1788.58 (a)(1))?",
-    "isDebtBuyer_1": "What is the bill of sale or declaration of account transfer that proves {plaintiff} is a debt buyer, i.e., purchased the debt in question from another entity?"+evidence_only,
+    "isDebtBuyer_1": "Is there a bill of sale or declaration of account transfer that proves {plaintiff} is a debt buyer, i.e., purchased the debt in question from another entity?",
     "isSoleOwner_0": "Does the plaintiff allege that they are the sole owner of the debt at issue (i.e., sole owner of the Account), or have authority to assert the rights of all owners of the debt (CA Civil Code § 1788.58 (a)(3))?",
-    "isSoleOwner_1": "Is there a business record that proves the debt, along with all associated rights, was fully and unconditionally transferred to {plaintiff}, providing them sole ownership of the debt in question or the authority to assert the rights of all owners of the debt?"+evidence_only,
+    "isSoleOwner_1": "Is there a business record that proves the debt, along with all associated rights, was fully and unconditionally transferred to {plaintiff}, providing them sole ownership of the debt in question or the authority to assert the rights of all owners of the debt?",
     "hasChargeOffBalance_0": "What does the plaintiff allege to be the debt balance at charge-off (CA Civil Code § 1788.58 (a)(4))?",
-    "hasChargeOffBalance_1": "Is there a business record that proves the alleged debt balance at charge-off: {short_allegation}?"+evidence_only,
+    "hasChargeOffBalance_1": "Is there a business record that proves the alleged debt balance at charge-off: {short_allegation}?",
     "hasPostChargeOffFeeExplanation_0": "If there are post-charge-off interest and fees, what are they and what explanation does the plaintiff provide for them (CA Civil Code § 1788.58 (a)(4))?",
-    "hasPostChargeOffFeeExplanation_1": "What are the business records that prove the alleged post-charge-off interest and fees: {short_allegation}?"+evidence_only,
+    "hasPostChargeOffFeeExplanation_1": "What are the business records that prove the alleged post-charge-off interest and fees: {short_allegation}?",
     "defaultOrLastPaymentDate_0": "What does the plaintiff allege to be the date of the debtor's last payment or the date of default (CA Civil Code § 1788.58 (a)(5))?",
-    "defaultOrLastPaymentDate_1": "Is there a business record that proves the alleged date of {defendant}'s last payment or the date of default: {short_allegation}?"+evidence_only,
+    "defaultOrLastPaymentDate_1": "Is there a business record that proves the alleged date of {defendant}'s last payment or the date of default: {short_allegation}?",
     "defaultOrLastPaymentDate_2": "What is the filing date of the complaint?",
     "chargeOffCreditorInfo_0": "What does the plaintiff allege to be the name and address of the charge-off creditor at the time of charge off and the account number associated with the debt (CA Civil Code § 1788.58 (a)(6))?",
-    "chargeOffCreditorInfo_1": "Are there business records that prove the alleged name and address of the charge-off creditor and the alleged account number associated with the debt: {short_allegation}?"+evidence_only,
+    "chargeOffCreditorInfo_1": "Are there business records that prove the alleged name and address of the charge-off creditor and the alleged account number associated with the debt: {short_allegation}?",
     "debtorInfo_0": "What does the plaintiff allege to be the name and last known address of the debtor (CA Civil Code § 1788.58 (a)(7))?", 
-    "debtorInfo_1": "Is there a business record from the charge-off creditor that proves the alleged name and address(es) of the debtor: {short_allegation}?"+evidence_only, 
+    "debtorInfo_1": "Is there a business record from the charge-off creditor that proves the alleged name and address(es) of the debtor: {short_allegation}?", 
     "postChargeOffPurchaserInfo_0": "What does the plaintiff allege to be the names and addresses of all persons or entities that purchased the debt after charge off, including {plaintiff} (CA Civil Code § 1788.58 (a)(8))?", 
-    "postChargeOffPurchaserInfo_1": "What are the business records that prove the alleged names and addresses of all persons or entities that purchased the debt after charge off, including the plaintiff debt buyer: {short_allegation}?"+evidence_only, 
+    "postChargeOffPurchaserInfo_1": "What are the business records that prove the alleged names and addresses of all persons or entities that purchased the debt after charge off, including the plaintiff debt buyer: {short_allegation}?", 
     "is1788.52Compliant_0": "Does the plaintiff allege that the complaint is compliant with CA Civil Code § 1788.52 (CA Civil Code § 1788.58 (a)(9))?",
-    "hasContractOrLastStatement_0": "Is there a copy of a contract or other document proving {defendant}'s agreement to the debt? For a revolving credit account, the most recent monthly statement recording a purchase transaction, last payment, or balance transfer shall be deemed sufficient to satisfy this requirement."+evidence_only,
+    "hasContractOrLastStatement_0": "Is there a copy of a contract or other document proving {defendant}'s agreement to the debt? For a revolving credit account, the most recent monthly statement recording a purchase transaction, last payment, or balance transfer shall be deemed sufficient to satisfy this requirement.",
 }
 
 node_to_cited_response_query_mapping = {
@@ -38,7 +35,7 @@ node_to_cited_response_query_mapping = {
     "hasPostChargeOffFeeExplanation_1": "Are the post-charge-off interest and fees that appear in the business records consistent with the values alleged by the plaintiff (CA Civil Code § 1788.58 (a)(4))? If not, what are the discrepancies?",
     "defaultOrLastPaymentDate_0": node_to_retrieval_query_mapping["defaultOrLastPaymentDate_0"]+" If this information is missing, state that.", 
     "defaultOrLastPaymentDate_1": "Is the date of the debtor's last payment or the date of default in the business records consistent with the information alleged by the plaintiff (CA Civil Code § 1788.58 (a)(5))? If not, what are the discrepancies?",
-    "defaultOrLastPaymentDate_2": "What is the filing date of the complaint? What is either the date of default or date of the debtor's last payment? Is the filing date of the complaint within 4 years of the other (per the California Statute of Limitations for breach of a written contract)? ",
+    "defaultOrLastPaymentDate_2": "What is the filing date of the complaint? What is either the date of default or date of the debtor's last payment? Is the filing date of the complaint within 4 years of the other (per the California Statute of Limitations for breach of a written contract)?",
     "chargeOffCreditorInfo_0": node_to_retrieval_query_mapping['chargeOffCreditorInfo_0']+" If the charge-off creditor's name and address are missing or are not in sufficient detail to identify the charge-off creditor, then state that.", 
     "chargeOffCreditorInfo_1": "Is the charge-off creditor's name, address, and account number in the business records consistent with the information alleged by the plaintiff (CA Civil Code § 1788.58 (a)(6))? If not, what are the discrepancies?",
     "debtorInfo_0": node_to_retrieval_query_mapping["debtorInfo_0"]+" If the debtor's name and address are missing or are not in sufficient detail to identify the debtor, then state that.",

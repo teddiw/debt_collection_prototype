@@ -32,6 +32,7 @@ Usage:
 import os
 import argparse
 import hashlib
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import List, Dict
@@ -60,6 +61,57 @@ def _vector_id(case_id: str, doc_type: str, text: str) -> str:
     return f"{case_id}|{doc_type}|{sha256(text)[:16]}"
 
 # ───────────────────────── Core Routine ────────────────────────────────────
+def identify_exhibits_fallback(doc_type: str) -> Dict[str, str]:
+    md_file_to_exhibit_metadata = {}    
+    pages = sorted(doc_type.glob("page_*.[mM][dD]"),    # grab every page_*.md
+                   key=lambda x: int(x.stem.split('_')[1])   # sort by the numeric part
+                  )
+    for md_file in pages:
+        text = md_file.read_text(encoding="utf-8").strip()
+        if not text:
+            continue
+        # If we have not yet found an exhibit page separator, then check if the current page is an exhibit page separator
+        if "plaintiff" in text.lower() or "defendant" in text.lower():
+            # If the page mentions "plaintiff" or "defendant", we assume it's an allegation page
+            exhibit_metadata = "allegation"
+        else:
+            exhibit_metadata = "exhibit"
+        md_file_to_exhibit_metadata[md_file.name] = exhibit_metadata
+    return md_file_to_exhibit_metadata
+
+def identify_exhibits(doc_type: str) -> Dict[str, str]:
+    """
+    For each md file in the directory, determine whether the text is a page separator for exhibits.
+    This is a heuristic based on the content of the page.
+    Create a mapping from md filename to a boolean indicating whether it is an exhibit page.
+    """
+    md_file_to_exhibit_metadata = {}    
+    pages = sorted(doc_type.glob("page_*.[mM][dD]"),    # grab every page_*.md
+                   key=lambda x: int(x.stem.split('_')[1])   # sort by the numeric part
+                  )
+    pattern = re.compile(r'\bExhibit\s+(["\']?)([A-Za-z0-9]+)\1', re.IGNORECASE)
+    exhibit_metadata = "allegation"
+    for md_file in pages:
+        text = md_file.read_text(encoding="utf-8").strip()
+        if not text:
+            continue
+        # If we have not yet found an exhibit page separator, then check if the current page is an exhibit page separator
+        if exhibit_metadata != "exhibit":
+            # Use regex to check Exhibit in any caps, ignoring quotation marks, followed by any letter or number
+            exhibit_match = pattern.search(text)
+            # Check that the word count is low
+            if exhibit_match and (len(text.split(' ')) < 20):
+                # Found an exhibit page separator! Switch the metadata to "exhibit" for this and all subsequent pages
+                # To obtain metadata regarding which page pertains to which exhibit (e.g., A, B, C), can use: str.upper(exhibit_match.group(2))
+                exhibit_metadata = "exhibit"
+
+        md_file_to_exhibit_metadata[md_file.name] = exhibit_metadata
+    
+    if exhibit_metadata != "exhibit":
+        # If we never found an exhibit page separator, then resort to the back-up method of vocabulary
+        md_file_to_exhibit_metadata = identify_exhibits_fallback(doc_type)
+        
+    return md_file_to_exhibit_metadata
 
 def embed_and_store(
     case_dir: str,
@@ -97,6 +149,9 @@ def embed_and_store(
     for doc_type in sorted(Path(case_dir).iterdir()):
         if not doc_type.is_dir():
             continue
+        
+        md_file_to_exhibit_metadata = identify_exhibits(doc_type)
+
         for md_file in sorted(doc_type.glob("*.[mM][dD]")):
             text = md_file.read_text(encoding="utf-8").strip()
             if not text:
@@ -110,6 +165,7 @@ def embed_and_store(
                     "vector_id": vid,
                     "case_id":   case_id,
                     "doc_type":  doc_type.name,
+                    "exhibit_or_allegation": md_file_to_exhibit_metadata[md_file.name],
                     "page_file": md_file.name,
                     "content_hash": sha256(text),
                     "embedding_model": embedding_model,
@@ -117,7 +173,6 @@ def embed_and_store(
                                             .isoformat(timespec="seconds"),
                 }
             })
-
 
     if not pages:
         print(f"[WARN] No pages found under {case_dir}")

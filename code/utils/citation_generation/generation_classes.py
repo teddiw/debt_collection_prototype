@@ -100,7 +100,7 @@ DAVID L BARG
 class CitedOutputGeneration(BaseModel):
     """Generate a response to the query grounded in and cited with the source quotes."""
 
-    system_prompt: ClassVar[str] = """Given the query and numbered source quotes, answer the query as succinctly as possible if the source quotes contain an answer. At the end of each sentence of the answer, cite the source quotes used by including the source quote number(s) in square brackets. If the source quotes do not contain an answer, then return \"No answer.\".
+    system_prompt: ClassVar[str] = """Given the query and numbered source quotes, answer the query as succinctly as possible if the source quotes contain an answer. At the end of each sentence of the answer, cite the source quotes used by including the source quote number(s) in square brackets. If the source quotes do not contain an answer, then return \"No answer.\". Also, provide a judgment of whether the requirements of the query are satisfied. Lastly, provide a short form answer to the query. The short form answer should be a single phrase (or several) such as a name, date, dollar amount, address, account number, or a Yes/No answer. 
 
 Here are some examples:
 
@@ -166,5 +166,5 @@ example_user:
 example_assistant: {{"cited_output_text": "At the time of charge-off the name of the charge-off creditor was Capital Bank, its address was 123 Main St, Los Angeles, CA 90001, and the associated account number was XXXXXXXXXX-XX-9281.", "requirement_satisfied": False, "short_answer": "Capital Bank; 123 Main St, Los Angeles, CA 90001; XXXXXXXXXX-XX-9281"}}
 """
     cited_output_text: str = Field(description="The answer to the query grounded in the appropriate source quotes with corresponding citation markers at the end of each sentence.")
-    requirement_satisfied: bool = Field(description="The judgment of whether the answer satisfies the requirements of the query. This should be True only if the answer thoroughly satisfies the requirements to an exemplary standard and False in all other cases.")
+    requirement_satisfied: bool = Field(description="A True or False value corresponding to whether the requirements of the query are satisfied. This should be True only if the requirements are fulfilled to an exemplary standard and False in all other cases.")
     short_answer: str = Field(description="The short form answer to the query. This should be a single phrase (or several) such as a name, date, dollar amount, address, account number, or a Yes/No answer.")

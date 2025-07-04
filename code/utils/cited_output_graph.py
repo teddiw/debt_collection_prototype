@@ -19,7 +19,8 @@ from langchain.chains import RetrievalQA
 from typing import Annotated
 
 from citation_generation.cited_generation import cited_generation
-from graph_system.cited_output_nodes import construct_llms, construct_retrievers, single_node_chain_names, triple_node_chain_names, all_chain_names, all_node_names
+from citation_generation.citation_utils import remove_citations
+from graph_system.cited_output_nodes import construct_llms, construct_retrievers, single_node_chain_names, triple_node_chain_names, all_chain_names, all_node_names, node_to_top_k_mapping, needs_allegation_from_predecessor_node_names
 from graph_system.query_mappings import node_to_retrieval_query_mapping, node_to_cited_response_query_mapping
 import pandas as pd 
 
@@ -49,7 +50,7 @@ async def main(
     
     # 1. Build LLMs and retrievers synchronously
     node_to_llm_mapping = construct_llms(model_str=model_str, temperature=0)
-    node_to_retriever_mapping = construct_retrievers(node_to_llm_mapping, index_name, case_id, top_k=top_k)
+    node_to_retriever_mapping = construct_retrievers(node_to_llm_mapping, index_name, case_id, node_to_top_k_mapping)
 
     # 2) Define a function that generates pure-async nodes from node_name and mappings
     def build_node(node_name: str,
@@ -64,22 +65,23 @@ async def main(
             cited_response_query = node_to_cited_response_query_mapping[node_name].format(plaintiff=state["plaintiff"], defendant=state["defendant"])
             node_number = int(node_name.split("_")[-1])
             short_response = "" 
-            if (node_number > 0):
-                # This is a node that requires the output of its predecessor
+            if node_name in needs_allegation_from_predecessor_node_names:
+                # This is a node where the retrieval and generation queries require the output of the predecessor node
                 predecessor_node_name = node_name.split("_")[0] + "_"+str(node_number-1)
                 for nn, cited_response in state['cited_responses']:
                     if nn == predecessor_node_name:
                         predecessor_response = cited_response
                         break
+                predecessor_response = remove_citations(predecessor_response)
+                cited_response_query += "\nInformation alleged by the plaintiff: " + predecessor_response
                 for nn, curr_short_response in state['short_responses']:
                     if nn == predecessor_node_name:
                         short_response = curr_short_response
                         break
-                
-                cited_response_query += "\nInformation alleged by the plaintiff: " + predecessor_response
             retrieval_query = retrieval_query.format(plaintiff=state["plaintiff"], defendant=state["defendant"], short_allegation=short_response)
             print()
-            print(retrieval_query)
+            print("RQ:", retrieval_query)
+            print("GQ:", cited_response_query)
             print()
             out = await node_to_retriever_mapping[node_name].ainvoke({"query": retrieval_query})
             # Extract page names from source_documents

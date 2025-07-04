@@ -15,6 +15,7 @@ def get_retriever(
     index_name: str,
     case_id: str,
     doc_type: Optional[str] = None,
+    exhibit_or_allegation: Optional[str] = None,
     embedding: OpenAIEmbeddings = OpenAIEmbeddings(model="text-embedding-3-small"),
     namespace: Optional[str] = None,
     top_k: int = 6,
@@ -30,6 +31,8 @@ def get_retriever(
     filt = {"case_id": case_id}
     if doc_type:
         filt["doc_type"] = doc_type
+    if exhibit_or_allegation:
+        filt["exhibit_or_allegation"] = exhibit_or_allegation
 
     return store.as_retriever(
         search_kwargs={"filter": filt, "k": top_k}
