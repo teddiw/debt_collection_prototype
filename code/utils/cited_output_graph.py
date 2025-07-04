@@ -20,7 +20,7 @@ from typing import Annotated
 
 from citation_generation.cited_generation import cited_generation
 from citation_generation.citation_utils import remove_citations
-from graph_system.cited_output_nodes import construct_llms, construct_retrievers, single_node_chain_names, triple_node_chain_names, all_chain_names, all_node_names, node_to_top_k_mapping, needs_allegation_from_predecessor_node_names
+from graph_system.cited_output_nodes import construct_llms, construct_retrievers, single_node_chain_names, triple_node_chain_names, all_chain_names, all_node_names, node_to_top_k_mapping, needs_allegation_from_predecessor_node_names, is_complaint_within_4_years
 from graph_system.query_mappings import node_to_retrieval_query_mapping, node_to_cited_response_query_mapping
 import pandas as pd 
 
@@ -89,15 +89,38 @@ async def main(
             # Get cited answer
             answer = cited_generation(cited_response_query, out['source_documents'], node_to_llm_mapping[node_name], verbose=True)
 
+            cited_response_ret_val = answer.cited_response
+            requirement_satisfied_ret_val = answer.requirement_satisfied
+            short_response_ret_val = answer.short_answer
+
+            if node_name=="defaultOrLastPaymentDate_2":
+                # Obtain the dates of default or last payment and of complaint filing via LLM, then use code to calculate if the dates meet the statute of limitations
+                complaint_filing_date = answer.short_answer
+                date_of_default_or_last_payment = short_response
+                meets_statute_of_limitations, error_str, date_of_default_or_last_payment = is_complaint_within_4_years(date_of_default_or_last_payment, complaint_filing_date)
+                if meets_statute_of_limitations:
+                    cited_response_ret_val += f" The complaint meets the statute of limitations, as it was filed within 4 years of the date of default or last payment ({date_of_default_or_last_payment})."
+                    requirement_satisfied_ret_val = True
+                    short_response_ret_val = "True"
+                else:
+                    if error_str:
+                        cited_response_ret_val += f" {error_str}"
+                    else:
+                        cited_response_ret_val += f" The complaint was not filed within 4 years of the date of default or last payment ({date_of_default_or_last_payment})."
+                    requirement_satisfied_ret_val = False
+                    short_response_ret_val = "False"
+
+                # TODO visualize to the user: Is the filing date of the complaint within 4 years of the other (per the California Statute of Limitations for breach of a written contract)?
+
             return {'retrieved_responses': [(node_name, out.get("result"))],
-                    'cited_responses': [(node_name, answer.cited_response)],
+                    'cited_responses': [(node_name, cited_response_ret_val)],
                     'retrieved_source_pages': [(node_name, source_pages)],
                     'highlighted_sources': [(node_name, answer.tag_highlighted_cited_sources)],
                     'highlighted_source_snippets': [(node_name, answer.tag_highlighted_cited_source_snippets)],
                     'cited_quotes': [(node_name, answer.cited_quotes)],
                     'cited_source_pages': [(node_name, answer.cited_source_names)],
-                    'requirement_satisfied': [(node_name, answer.requirement_satisfied)],
-                    'short_responses': [(node_name, answer.short_answer)],
+                    'requirement_satisfied': [(node_name, requirement_satisfied_ret_val)],
+                    'short_responses': [(node_name, short_response_ret_val)],
                     }
         return node
 

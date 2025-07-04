@@ -1,6 +1,8 @@
+import re
 from langchain.chat_models import init_chat_model
 from langchain.chains import RetrievalQA
 from .retriever import get_retriever
+from datetime import datetime
 
 # Keep a list of the node names
 # Node names programmatically correspond to the nodes they're connected to
@@ -178,6 +180,35 @@ needs_allegation_from_predecessor_node_names = [
     "postChargeOffPurchaserInfo_1",
 ]
 
+def is_complaint_within_4_years(date_of_default_or_last_payment: str, complaint_filing_date: str) -> bool:
+    """
+    Check if the complaint date is within 4 years of the filing date.
 
+    Returns
+    bool: True if the complaint is within 4 years of the date of default or last payment, False otherwise.
+    str: If the complaint date is before the date of default or last payment, or the dates are invalid, returns an error message.
+    str: The date of default or last payment in MM/DD/YYYY format.
+    """
+    # Use regex to extract the date in MM/DD/YYYY format
+    complaint_filing_date_match = re.search(r'(\d{1,2}/\d{1,2}/\d{4})', complaint_filing_date)
+    date_of_default_or_last_payment_match = re.search(r'(\d{1,2}/\d{1,2}/\d{4})', date_of_default_or_last_payment)
+    if not complaint_filing_date_match or not date_of_default_or_last_payment_match:
+        return False, f"System Error: Encountered a date format that could not be parsed in \"{date_of_default_or_last_payment}\" or \"{complaint_filing_date}\".", None        
+    complaint_filing_date = complaint_filing_date_match.group(0)
+    date_of_default_or_last_payment = date_of_default_or_last_payment_match.group(0)
 
+    fmt = "%m/%d/%Y"
+    d1 = datetime.strptime(date_of_default_or_last_payment, fmt)
+    d2 = datetime.strptime(complaint_filing_date, fmt)
 
+    if d2 < d1:
+        return False, f"System Error: The identified complaint filing date ({complaint_filing_date}) preceeds the identified date of default or date of last payment ({date_of_default_or_last_payment}). Cannot determine whether the statute of limitations is met.", None
+
+    # Initial year difference
+    years = d2.year - d1.year
+
+    # Subtract one if the "anniversary" hasn't occurred yet this year. If the "anniversary" is the month and day of the date of default or last payment, we count the statute of limitations as having expired.
+    if (d2.month, d2.day) < (d1.month, d1.day):
+        years -= 1
+
+    return years < 4, None, date_of_default_or_last_payment

@@ -100,7 +100,7 @@ DAVID L BARG
 class CitedOutputGeneration(BaseModel):
     """Generate a response to the query grounded in and cited with the source quotes."""
 
-    system_prompt: ClassVar[str] = """Given the query and numbered source quotes, answer the query as succinctly as possible if the source quotes contain an answer. At the end of each sentence of the answer, cite the source quotes used by including the source quote number(s) in square brackets. If the source quotes do not contain an answer, then return \"No answer.\". Also, provide a judgment of whether the requirements of the query are satisfied. Lastly, provide a short form answer to the query. The short form answer should be a single phrase (or several) such as a name, date, dollar amount, address, account number, or a Yes/No answer. 
+    system_prompt: ClassVar[str] = """Given the query and numbered source quotes, answer the query as succinctly as possible if the source quotes contain an answer. At the end of each sentence of the answer, cite the source quotes used by including the source quote number(s) in square brackets. If the source quotes do not contain an answer, then return \"No answer.\". Also, provide a judgment of whether the requirements of the query are satisfied. Lastly, provide a short form answer to the query. The short form answer should be a single phrase (or several) such as a name, date (formatted as MM/DD/YYYY), dollar amount, address, account number, or a Yes/No answer. 
 
 Here are some examples:
 
